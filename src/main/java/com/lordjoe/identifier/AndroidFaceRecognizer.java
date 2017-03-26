@@ -4,10 +4,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.IntBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static android.R.attr.label;
 import static com.lordjoe.identifier.OpenCVUtilities.*;
@@ -29,22 +26,22 @@ import org.bytedeco.javacpp.opencv_core.MatVector;
  * so I decided to share a viable solution here. The solution is very inefficient in its
  * current form as the training model is built at each run, however it shows what's needed
  * to make it work.
- *
+ * <p>
  * The class below takes two arguments: The path to the directory containing the training
  * faces and the path to the image you want to classify. Not that all images has to be of
  * the same size and that the faces already has to be cropped out of their original images
  * (Take a look here http://fivedots.coe.psu.ac.th/~ad/jg/nui07/index.html if you haven't
  * done the face detection yet).
- *
+ * <p>
  * For the simplicity of this post, the class also requires that the training images have
  * filename format: <label>-rest_of_filename.png. For example:
- *
+ * <p>
  * 1-jon_doe_1.png
  * 1-jon_doe_2.png
  * 2-jane_doe_1.png
  * 2-jane_doe_2.png
  * ...and so on.
- *
+ * <p>
  * Source: http://pcbje.com/2012/12/doing-face-recognition-with-javacv/
  *
  * @author Petter Christian Bjelland
@@ -57,59 +54,32 @@ import org.bytedeco.javacpp.opencv_core.MatVector;
  */
 public class AndroidFaceRecognizer {
 
-    public static final String EIGEN_RECOGNIZER =  "Eigenfaces.xml";
-    public static final String FISHER_RECOGNIZER =  "Fisherfaces.xml";
-    public static final String LBPH_RECOGNIZER =  "LBPHfaces.xml";
     public static final double CONFIDENCE_LIMIT = 700;
 
-    public static FaceRecognizer buildRecognizer(FilenameFilter imgFilter, File root)   {
+    public static FaceRecognizer getFaceRecognizer( File root,FaceRecognizerType type, String saveFile) {
 
-        File[] imageFiles = root.listFiles(imgFilter);
-        MatVector images = new MatVector(imageFiles.length);
+        if (saveFile == null)
+            saveFile = type.toString() + ".xml";
 
+        FaceRecognizer faceRecognizer = OpenCVUtilities.createFaceRecognizerOfType(type);
 
-        /**
-         * do in two steps to drop bad faces
-         * We get bad applocation sometimes
-         */
-        Map<Mat,Integer> faces = new HashMap<>(imageFiles.length);
-        for (File image : imageFiles) {
-            Integer label = 0;
-            String name = image.getName();
-
-            Mat mat = OpenCVUtilities.extractFace(image);
-            if(mat != null) {
-                label = getLabelFromFile(name);
-                faces.put(mat, label);
-            }
+        if(new File(saveFile).exists())   {
+            faceRecognizer.load(saveFile);
         }
+        else {
+            long start = System.currentTimeMillis();
+            System.out.println("Training...");
+            trainFaceRecognizer(  faceRecognizer,  root,   saveFile);
+            long end = System.currentTimeMillis() - start;
+            System.out.println("Done Training... in " + end/1000 + " sec");
+         }
 
-        int counter = 0;
-        Mat labels = new Mat(faces.size(), 1, CV_32SC1);
-        IntBuffer labelsBuf = labels.createBuffer();
-        for (Mat mat : faces.keySet()) {
-            int label = faces.get(mat);
-              images.put(counter, mat);
-             labelsBuf.put(counter, label);
-             counter++;
-        }
-
-         //  FaceRecognizer faceRecognizer = createFisherFaceRecognizer();
-        FaceRecognizer faceRecognizer = createEigenFaceRecognizer();
-        // FaceRecognizer faceRecognizer = createLBPHFaceRecognizer();
-
-        faceRecognizer.train(images, labels);
-
-        faceRecognizer.save("Eigenfaces.xml");
-
-        return faceRecognizer;
+           return faceRecognizer;
     }
 
-
-
-    public static FaceRecognizer trainLBPHFaceRecognizer(FilenameFilter imgFilter, File root, String saveFile) {
-        File[] imageFiles = root.listFiles(imgFilter);
-
+    protected static void trainFaceRecognizer(FaceRecognizer faceRecognizer,File root, String saveFile)
+    {
+        File[] imageFiles = root.listFiles(OpenCVUtilities.makeImageFilter());
         MatVector images = new MatVector(imageFiles.length);
 
         Mat labels = new Mat(imageFiles.length, 1, CV_32SC1);
@@ -132,78 +102,23 @@ public class AndroidFaceRecognizer {
             counter++;
         }
 
-         FaceRecognizer faceRecognizer = createLBPHFaceRecognizer();
-
         faceRecognizer.train(images, labels);
 
         faceRecognizer.save(saveFile);
-        return faceRecognizer;
+
     }
 
+    public static void updateFaceRecognizer(FaceRecognizer faceRecognizer,List<File> files)
+    {
+        int size = files.size();
+        MatVector images = new MatVector(size);
 
-    public static FaceRecognizer getLBPHFaceRecognizer (FilenameFilter imgFilter, File root, String saveFile) {
-         FaceRecognizer faceRecognizer = createLBPHFaceRecognizer();
-
-        faceRecognizer.load(saveFile);
-        return faceRecognizer;
-    }
-
-    public static FaceRecognizer trainEigenFaceRecognizer(FilenameFilter imgFilter, File root, String saveFile) {
-        File[] imageFiles = root.listFiles(imgFilter);
-
-        MatVector images = new MatVector(imageFiles.length);
-
-        Mat labels = new Mat(imageFiles.length, 1, CV_32SC1);
+        Mat labels = new Mat(size, 1, CV_32SC1);
         IntBuffer labelsBuf = labels.createBuffer();
 
         int counter = 0;
 
-        for (File image : imageFiles) {
-            Mat img = imread(image.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
-            Mat smaller = null;
-        //    org.bytedeco.javacpp.opencv_imgcodecs.
-            int label = 0;
-            String name = image.getName();
-            label = getLabelFromFile(name);
-
-            images.put(counter, img);
-
-            labelsBuf.put(counter, label);
-
-            counter++;
-        }
-
-        //  FaceRecognizer faceRecognizer = createFisherFaceRecognizer();
-        FaceRecognizer faceRecognizer = createEigenFaceRecognizer();
-        // FaceRecognizer faceRecognizer = createLBPHFaceRecognizer();
-
-        faceRecognizer.train(images, labels);
-
-        faceRecognizer.save(saveFile);
-        return faceRecognizer;
-    }
-
-
-    public static FaceRecognizer getEigenFaceRecognizer (FilenameFilter imgFilter, File root, String saveFile) {
-         //  FaceRecognizer faceRecognizer = createFisherFaceRecognizer();
-        FaceRecognizer faceRecognizer = createEigenFaceRecognizer();
-        // FaceRecognizer faceRecognizer = createLBPHFaceRecognizer();
-
-        faceRecognizer.load(saveFile);
-        return faceRecognizer;
-    }
-
-    public static FaceRecognizer trainFisherFaceRecognizer(FilenameFilter imgFilter, File root, String saveFile) {
-        File[] imageFiles = root.listFiles(imgFilter);
-
-        MatVector images = new MatVector(imageFiles.length);
-
-        Mat labels = new Mat(imageFiles.length, 1, CV_32SC1);
-        IntBuffer labelsBuf = labels.createBuffer();
-
-        int counter = 0;
-
-        for (File image : imageFiles) {
+        for (File image : files) {
             Mat img = imread(image.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
             Mat smaller = null;
             //    org.bytedeco.javacpp.opencv_imgcodecs.
@@ -218,73 +133,103 @@ public class AndroidFaceRecognizer {
             counter++;
         }
 
-         FaceRecognizer faceRecognizer = createFisherFaceRecognizer();
+        faceRecognizer.update(images, labels);
 
-        faceRecognizer.train(images, labels);
 
-        faceRecognizer.save(saveFile);
-        return faceRecognizer;
     }
 
 
 
-    public static FaceRecognizer getFisherFaceRecognizer (FilenameFilter imgFilter, File root, String saveFile) {
-         FaceRecognizer faceRecognizer = createFisherFaceRecognizer();
-          faceRecognizer.load(saveFile);
-        return faceRecognizer;
+    public static void testMultiRecognizer(File trainingDir, File testImageDir, FaceRecognizer faceRecognizer,Set<Integer> trainedLabels,File updateDir) {
+
+        Map<Integer,List<File>> updateSet = findFilesWithLabel( updateDir);
+        Map<Integer,List<File>> trainingSet = findFilesWithLabel( trainingDir);
+        int retainedResults = (int)Math.max(2,(int)trainingSet.size() * 0.04);
+
+          int numberTotal = 0;
+          int numberCorrect = 0;
+          Map<Integer,List<File>> testSet = findFilesWithLabel(testImageDir);
+          double[] confidence = {0.0 };
+          for (Integer label : testSet.keySet()) {
+              boolean inTrainingSet =  trainedLabels.contains(label);
+            List<File> files = testSet.get(label);
+             List<IdentificationResult> allIds = new ArrayList<>();
+             for (File testFile : files) {
+                 List<IdentificationResult>  thisResults = matchFile(testFile,faceRecognizer,retainedResults);
+                 allIds.addAll(thisResults);
+             }
+             Collections.sort(allIds);
+              boolean isCorrect = evaluateResults(label, confidence, allIds);
+              if(!inTrainingSet)
+                  isCorrect = !isCorrect; // identified is bad
+              numberTotal++;
+              if(isCorrect)
+                  numberCorrect++;
+              String error = "";
+              if(!isCorrect )
+                  error = inTrainingSet ? "****"  : "=====";
+              System.out.println(Integer.toString(label) +  " confidence " + String.format("%3.1f",confidence[0]) + " "   + error);
+
+              if(isCorrect && !inTrainingSet &&  updateSet.containsKey(label)) {
+                  boolean nowRecognozed = updateAndTest(label,updateSet.get(label),faceRecognizer,files,  retainedResults);
+                  numberTotal++;
+                  if(nowRecognozed)
+                      numberCorrect++;
+              }
+
+          }
+          System.out.println("Total " + numberTotal + " Correct " + numberCorrect + " % " + String.format("%3.1f",(100.0 * numberCorrect)/ numberTotal));
     }
 
-    public static void testRecognizer(File testImageDir, FilenameFilter imgFilter, FaceRecognizer faceRecognizer) {
-        File[] testFiles = testImageDir.listFiles(imgFilter);
-        int total = testFiles.length;
-        int errors = 0;
-        int high_confidence_errors = 0;
+    public static boolean updateAndTest(Integer label, List<File> trainingFiles, FaceRecognizer faceRecognizer, List<File> testfiles,int retainedResults) {
+        updateFaceRecognizer(  faceRecognizer,trainingFiles);
+          List<IdentificationResult> allIds = new ArrayList<>();
+        for (File testFile : testfiles) {
+            List<IdentificationResult>  thisResults = matchFile(testFile,faceRecognizer,retainedResults);
+            allIds.addAll(thisResults);
+        }
+        Collections.sort(allIds);
         double[] confidence = {0.0 };
-        for (File testFile : testFiles) {
-            int predictedLabel = recognizeFile(    faceRecognizer ,testFile,confidence);
+        boolean isCorrect = evaluateResults(label, confidence, allIds);
+            String error = "";
+        if(!isCorrect )
+            error =   "=====";
+        System.out.println("Trained " + Integer.toString(label) +  " confidence " + String.format("%3.1f",confidence[0]) + " "   + error);
+        return isCorrect;
+    }
 
-            int testIndex  =  indexFromTestName(testFile.getName());
-
-            String error = "" ;
-            if(predictedLabel != testIndex) {
-                errors++;
-                if( confidence[0] < CONFIDENCE_LIMIT)
-                    high_confidence_errors++;
-                error = " *****";
-            }
-
-            System.out.println("Predicted label: " + predictedLabel + " confidence " + confidence[0] + " file " + testFile.getName() + error);
+    public static boolean evaluateResults(Integer label, double[] confidence, List<IdentificationResult> allIds) {
+        double minConfidence = Double.MAX_VALUE;
+        double minLabelConfidence = 1000;
+        for (IdentificationResult ident : allIds) {
+            minConfidence = Math.min(ident.confidence,minConfidence);
+            if(ident.label == label)
+                minLabelConfidence = Math.min(ident.confidence,minLabelConfidence);
 
         }
-        System.out.println("tested " + total + " errors " + errors+ " HCErrors " + high_confidence_errors);
-    }
+        ModeFinder modes = new ModeFinder();
+        double acceptedConfidence = 1.2 * minConfidence;
+        for (IdentificationResult ident : allIds) {
+           if(ident.confidence < acceptedConfidence)
+                modes.addItem(ident.label);
+        }
+          confidence[0] =  minLabelConfidence;
 
-    public static int recognizeFile(  FaceRecognizer faceRecognizer ,File testImageFile,double[] confidence) {
-         Mat testImage = imread(testImageFile.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
-         DoublePointer predicted_confidence = new DoublePointer(1);
-         IntPointer pred = new IntPointer(1) ;
-         faceRecognizer.predict(testImage,pred,predicted_confidence);
-         int predictedLabel = pred.get();
-          confidence[0] = predicted_confidence.get();
+        boolean ret = modes.isMode(label) || minLabelConfidence < 80;
 
-          OpenCVUtilities.doPredict(testImage,faceRecognizer);
-          return  predictedLabel;
-     }
-
-    public static Mat readSizedImage(File image,opencv_core.Size sz)    {
-        Mat src = imread(image.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
-        Mat smaller = new Mat();
-        Mat dst = new Mat(); //no, you don't have to pre-allocate it. this is no more C.
-      //   .resize(src, dst, new opencv_core.Size(200,200) ); //resize image
-          return src;
-
+        return ret;
     }
 
 
+    /**
+     * creates and saves a face recognizer also may test
+     * @param args
+     * @throws Exception
+     */
     public static void main(String[] args) throws Exception {
-     //   System.setProperty("org.bytedeco.javacpp.logger.debug", "true");
-     //   System.setProperty("org.bytedeco.javacpp.maxphysicalbytes", "0");
-        System.out.println(System.getProperty("java.library.path"));
+        //   System.setProperty("org.bytedeco.javacpp.logger.debug", "true");
+        //   System.setProperty("org.bytedeco.javacpp.maxphysicalbytes", "0");
+        //  System.out.println(System.getProperty("java.library.path"));
 //        try {
 //            Loader.load(AndroidFaceRecognizer.class);
 //        } catch (UnsatisfiedLinkError e) {
@@ -294,24 +239,32 @@ public class AndroidFaceRecognizer {
 //        }
 
         String trainingDir = args[0];
+        Map<Integer,List<File>> trainingSet = findFilesWithLabel( new File(trainingDir));
+
         File testImageDir = new File(args[1]);
-        if(!testImageDir.exists())
-            throw new IllegalArgumentException("no test image"); // ToDo change
 
-        FilenameFilter imgFilter = makeImageFilter();
 
-        File root = new File(trainingDir);
+       File root = new File(trainingDir);
 
-      // FaceRecognizer faceRecognizer = getLBPHFaceRecognizer(imgFilter, root,LBPH_RECOGNIZER);
-      // FaceRecognizer faceRecognizer = getFisherFaceRecognizer(imgFilter, root,FISHER_RECOGNIZER);
-       //  FaceRecognizer faceRecognizer = trainLBPHFaceRecognizer(imgFilter, root,LBPH_RECOGNIZER);
-       // FaceRecognizer faceRecognizer = getEigenFaceRecognizer(imgFilter, root,EIGEN_RECOGNIZER);
-        //  FaceRecognizer faceRecognizer = trainFisherFaceRecognizer(imgFilter, root,FISHER_RECOGNIZER);
-         FaceRecognizer faceRecognizer = trainEigenFaceRecognizer(imgFilter, root,EIGEN_RECOGNIZER);
+        String saveFileName = null;
+        if (args.length > 2)
+            saveFileName = args[2];
 
-        testRecognizer(testImageDir, imgFilter, faceRecognizer);
+        File updateDirectory = null;
+        if (args.length > 3)
+            updateDirectory = new File(args[3]);
+
+        FaceRecognizer faceRecognizer = getFaceRecognizer( root,FaceRecognizerType.LBPHFaceFaces, saveFileName);
+
+        if(false && testImageDir.exists())
+            AndroidFaceRecognizerTest.testRecognizer(testImageDir,faceRecognizer);
+
+        if(testImageDir.exists())
+            testMultiRecognizer(root,testImageDir, faceRecognizer,new HashSet<Integer>(trainingSet.keySet()),updateDirectory);
+
 
     }
+
 
 
 }

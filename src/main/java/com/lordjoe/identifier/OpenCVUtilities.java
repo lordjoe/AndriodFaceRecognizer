@@ -5,18 +5,20 @@ import org.bytedeco.javacpp.*;
 import java.io.*;
 import java.net.URL;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
 
 import static org.bytedeco.javacpp.helper.opencv_objdetect.cvHaarDetectObjects;
 import static org.bytedeco.javacpp.opencv_core.*;
-import static org.bytedeco.javacpp.opencv_imgcodecs.cvLoadImage;
-import static org.bytedeco.javacpp.opencv_imgcodecs.cvSaveImage;
+import static org.bytedeco.javacpp.opencv_face.createEigenFaceRecognizer;
+import static org.bytedeco.javacpp.opencv_face.createFisherFaceRecognizer;
+import static org.bytedeco.javacpp.opencv_face.createLBPHFaceRecognizer;
+import static org.bytedeco.javacpp.opencv_imgcodecs.*;
 import static org.bytedeco.javacpp.opencv_imgproc.*;
 import static org.bytedeco.javacpp.opencv_objdetect.CV_HAAR_DO_CANNY_PRUNING;
 import java.awt.image.BufferedImage;
- 
+import java.util.Arrays;
+
 import org.bytedeco.javacpp.avcodec;
 import org.bytedeco.javacv.*;
 import org.bytedeco.javacv.FrameRecorder.Exception;
@@ -47,7 +49,7 @@ public class OpenCVUtilities {
 
     private static boolean isLoaded = false;
 
-    private static void guaranteeLoaded() {
+    public static void guaranteeLoaded() {
         if (!isLoaded) {
           // System.setProperty("org.bytedeco.javacpp.logger.debug", "true");
             // preload the opencv_objdetect module to work around a known bug
@@ -108,6 +110,55 @@ public class OpenCVUtilities {
 //        }
 //    }
 
+
+    /**
+     * go through a directory placing all labeled files in label buckets
+     * @param directory
+     * @return
+     */
+    public static  Map<Integer,List<File>> findFilesWithLabel(File directory)
+    {
+        Map<Integer,List<File>> ret = new HashMap<>();
+        for (File file : directory.listFiles(makeImageFilter())) {
+             categorizeImageFile(file,ret) ;
+        }
+        return ret;
+    }
+
+
+    /**
+     * find files with required numbers of duplicates
+     * @param inp  all labeled images
+     * @param requiredDuplictes number duplicate images needed
+     * @return
+     */
+    public static Map<Integer,List<File>> findCommonFilesWithLabel(Map<Integer,List<File>> inp, int requiredDuplictes)
+    {
+        Map<Integer,List<File>> ret = new HashMap<>();
+        for (Integer label : inp.keySet()) {
+            List<File> files = inp.get(label);
+            if(files.size() >= requiredDuplictes)
+                ret.put(label,files);
+        }
+        return ret;
+    }
+
+
+    /**
+     * stick the file under the label
+     * @param file
+     * @param ret
+     */
+    private static void categorizeImageFile(File file, Map<Integer, List<File>> ret) {
+        Integer label = getLabelFromFile(  file);
+        List<File> files = ret.get(label);
+        if(files == null)   {
+            files = new ArrayList<>();
+            ret.put(label,files) ;
+
+        }
+        files.add(file);
+    }
 
     public static opencv_objdetect.CascadeClassifier getFaceClassifier() {
         if (faceDetector == null) {
@@ -227,6 +278,10 @@ public class OpenCVUtilities {
 
     }
 
+    /**
+     * filter for image files
+     * @return
+     */
     public static FilenameFilter makeImageFilter() {
         return new FilenameFilter() {
             public boolean accept(File dir, String name) {
@@ -248,6 +303,35 @@ public class OpenCVUtilities {
 
         }
     }
+
+    /**
+     * randomly choose unique elements
+     * @param collection  original collection - returns with unchosen elements
+     * @param numberToChoose    size of returned collection if  collection has this many elements
+     * @param <T>
+     * @return   chosen items - no longer in original collection
+     */
+    public static <T> List<T>  chooseUnique(List<T> collection, int numberToChoose) {
+        List<T> ret = new ArrayList<>( );
+        if(collection.size() <= numberToChoose)  {
+               ret = new ArrayList<>(collection);
+              collection.clear();
+          }
+          else {
+            while(ret.size() < numberToChoose || collection.isEmpty()) {
+
+                int size = collection.size();
+                int choice = 0;
+                if(size > 1)
+                    choice = RND.nextInt(size);
+                T chosen = collection.get(choice);
+                ret.add(chosen);
+                collection.remove(chosen);
+            }
+        }
+        return ret;
+    }
+
 
     public static <T> T chooseandRemove(List<T> collection) {
         T ret = collection.get(0);
@@ -366,6 +450,46 @@ public class OpenCVUtilities {
         }
     }
 
+    /**
+     * return the top retainedResults  of File TestFile by  faceRecognizer
+     * @param testFile
+     * @param faceRecognizer
+     * @param retainedResults
+     * @return
+     */
+    public static List<IdentificationResult>  matchFile(File testFile,opencv_face.FaceRecognizer faceRecognizer,int retainedResults)     {
+        List<IdentificationResult> holder = new ArrayList<>();
+        Mat testImage = imread(testFile.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
+        String name = testFile.getName();
+        int fileIndex  =  indexFromTestName(name);
+        opencv_face.StandardCollector standardCollector = opencv_face.StandardCollector.create();
+        faceRecognizer.predict_collect(testImage,standardCollector);
+        IntDoublePairVector results = standardCollector.getResults(true);
+        long size = results.size();
+        for (int i = 0; i <  size ; i++) {
+            int index =  results.first(i) ;
+            double confidence  =  results.second(i) ;
+            holder.add(new IdentificationResult(name,index,confidence));
+
+        }
+        Collections.sort(holder);
+          List<IdentificationResult> ret = new ArrayList<>();
+        for (int i = 0; i < Math.min(retainedResults,holder.size()); i++) {
+            ret.add(holder.get(i));
+
+        }
+        return ret;
+     }
+
+
+    public static boolean verifyIdentity(List<File> files, opencv_face.FaceRecognizer faceRecognizer,double[] confidence,int[] position , int testIndex) {
+        final int numberFaces = faceRecognizer.sizeof();
+        for (File testFile : files) {
+         }
+
+         throw new UnsupportedOperationException("Fix This"); // ToDo
+    }
+
 
     public static final double MIN_ACCEPTED_FRACTION  = 0.01;
 
@@ -425,4 +549,47 @@ public class OpenCVUtilities {
             Thread.sleep(d);
         } catch (InterruptedException ex) { }
     }
+
+    public static void moveFiles(List<File> filesWithLabel, File outDir) {
+        try {
+            for (File file : filesWithLabel) {
+                File newFile = new File(outDir,file.getName());
+                Files.move(file.toPath(),newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (java.lang.Exception e) {
+            throw new RuntimeException(e);
+
+        }
+    }
+
+    public static void copyFiles(List<File> filesWithLabel, File outDir) {
+        try {
+            for (File file : filesWithLabel) {
+                File newFile = new File(outDir,file.getName());
+                Files.copy(file.toPath(),newFile.toPath());
+            }
+        } catch (java.lang.Exception e) {
+            throw new RuntimeException(e);
+
+        }
+    }
+
+
+    public static opencv_face.FaceRecognizer createFaceRecognizerOfType(FaceRecognizerType type)
+    {
+        switch(type) {
+            case EigenFaces:
+                return createEigenFaceRecognizer();
+            case LBPHFaceFaces:
+                return createLBPHFaceRecognizer();
+            case FischerFaces:
+                return createFisherFaceRecognizer();
+            default:
+                throw new IllegalStateException("never get here");
+
+        }
+
+    }
+
+
 }

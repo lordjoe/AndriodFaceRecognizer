@@ -3,12 +3,10 @@ package com.lordjoe.identifier;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import static com.lordjoe.identifier.OpenCVUtilities.chooseandRemove;
+import static com.lordjoe.identifier.OpenCVUtilities.findFilesWithLabel;
 import static com.lordjoe.identifier.OpenCVUtilities.getLabelFromFile;
 
 /**
@@ -26,40 +24,26 @@ public class TestSetSelector {
     public static void main(String[] args) {
         File inDir = new File(args[0]);
         File outDir = new File(args[1]);
-        FilenameFilter imageFilter = OpenCVUtilities.makeImageFilter();
-        File[] dirs = inDir.listFiles(imageFilter);
-         if(dirs == null)
-            return;
-        Arrays.sort(dirs);
+        int numberToChoose = 5;
+        if(args.length > 2)
+            numberToChoose = Integer.parseInt(args[2]);
 
         outDir.mkdirs();
-        int currentLabel  = 0;
 
-        List<File> allFiles = new ArrayList<File>(Arrays.asList(dirs));
-        List<File> filesWithLabel = new ArrayList<File>();
-        int length = dirs.length;
-        int desiredSize =  (int)(TEST_SET_FRACTION * length);
+        Map<Integer,List<File>> filesWithLabel = findFilesWithLabel(inDir);
 
-        while(filesWithLabel.size() < desiredSize)  {
-            filesWithLabel.add(chooseandRemove(allFiles));
-
+        for (Integer label : filesWithLabel.keySet()) {
+            List<File> files = filesWithLabel.get(label);
+            List<File> testFiles = OpenCVUtilities.chooseUnique(files, numberToChoose);
+            OpenCVUtilities.moveFiles(testFiles,outDir);
         }
-        moveFiles(filesWithLabel,outDir);
-    }
 
 
 
-    private static void moveFiles(List<File> filesWithLabel, File outDir) {
-        try {
-            for (File file : filesWithLabel) {
-                 File newFile = new File(outDir,file.getName());
-                Files.move(file.toPath(),newFile.toPath());
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+     }
 
-        }
-    }
+
+
 
 
 }

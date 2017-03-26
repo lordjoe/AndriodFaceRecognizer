@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Random;
 
 import static com.lordjoe.identifier.OpenCVUtilities.saveAndLabelCroppedImage;
@@ -20,7 +21,7 @@ public class SelectLabeledTrainingSet {
     private static void addToTrainingSet(File file,File outDir) throws IOException {
 
         File newFile = new File(outDir,file.getName());
-        Files.move(file.toPath(),newFile.toPath());
+        Files.move(file.toPath(),newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
 
 

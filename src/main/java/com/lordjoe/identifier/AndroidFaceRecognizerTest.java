@@ -226,14 +226,14 @@ public class AndroidFaceRecognizerTest {
 
 
 
-    public static FaceRecognizer getFisherFaceRecognizer (FilenameFilter imgFilter, File root, String saveFile) {
+    public static FaceRecognizer getFisherFaceRecognizer (File root, String saveFile) {
          FaceRecognizer faceRecognizer = createFisherFaceRecognizer();
           faceRecognizer.load(saveFile);
         return faceRecognizer;
     }
 
-    public static void testRecognizer(File testImageDir, FilenameFilter imgFilter, FaceRecognizer faceRecognizer) {
-        File[] testFiles = testImageDir.listFiles(imgFilter);
+    public static void testRecognizer(File testImageDir, FaceRecognizer faceRecognizer) {
+        File[] testFiles = testImageDir.listFiles(OpenCVUtilities.makeImageFilter());
         int total = testFiles.length;
         int errors = 0;
         int[] index_found = { 0 };
@@ -300,13 +300,9 @@ public class AndroidFaceRecognizerTest {
         FilenameFilter imgFilter = makeImageFilter();
 
 
-      FaceRecognizer faceRecognizer = getLBPHFaceRecognizer( serializedFile);
-      // FaceRecognizer faceRecognizer = getFisherFaceRecognizer(imgFilter, root,FISHER_RECOGNIZER);
-        // FaceRecognizer faceRecognizer = trainLBPHFaceRecognizer(imgFilter, root,LBPH_RECOGNIZER);
-       // FaceRecognizer faceRecognizer = getEigenFaceRecognizer(imgFilter, root,EIGEN_RECOGNIZER);
-        //  FaceRecognizer faceRecognizer = trainFisherFaceRecognizer(imgFilter, root,FISHER_RECOGNIZER);
+      FaceRecognizer faceRecognizer = AndroidFaceRecognizer.getFaceRecognizer(null,FaceRecognizerType.LBPHFaceFaces, serializedFile);
 
-        testRecognizer(testImageDir, imgFilter, faceRecognizer);
+       testRecognizer(testImageDir, faceRecognizer);
 
     }
 
