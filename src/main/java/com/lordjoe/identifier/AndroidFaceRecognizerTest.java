@@ -52,6 +52,12 @@ import static org.bytedeco.javacpp.opencv_imgcodecs.imread;
  * com.lordjoe.identifier.FaceRecognizer
  * User: Steve
  * Date: 3/13/2017
+ *
+ * Sample command line
+ * T:\training\LBPHfacesIFWTraining.xml   T:\training\ifw_test
+ * arg 0 saved FaceRecognixer
+ * arg 1 directory of labeled test images
+ *
  */
 public class AndroidFaceRecognizerTest {
 

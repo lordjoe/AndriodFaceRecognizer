@@ -62,8 +62,11 @@ public class OpenCVUtilities {
 
 
 
-    public static IplImage doDetectFace(IplImage smallImg)
+    public static IplImage doDetectFace(IplImage smallImg,double[] faceFractions)
     {
+        int imageHeight = smallImg.height();
+        int imageWidth = smallImg.width();
+
         // create temp storage, used during object detection
         if(storage == null)
             storage = CvMemStorage.create();
@@ -78,8 +81,16 @@ public class OpenCVUtilities {
         // iterate over the faces and draw yellow rectangles around them
         int total = faces.total();
         CvRect r = new CvRect(cvGetSeqElem(faces, 0));
+        if(r.address() == 0)
+              return null;
         int height = r.height();
         int width = r.width();
+
+
+        double heightFraction = (double)height/ imageHeight;
+
+        double widthFraction = (double)width/ imageWidth;
+        faceFractions[0] = Math.min(heightFraction,widthFraction) ;
 
         // After setting ROI (Region-Of-Interest) all processing will only be done on the ROI
         cvSetImageROI(smallImg, r);
@@ -261,7 +272,10 @@ public class OpenCVUtilities {
         System.out.println(imageFile.getAbsolutePath());
         IplImage smallImg = normailzedImage(imageFile);
 
-        IplImage cropped = doDetectFace(  smallImg);
+        double[] fractionFace =  { 0 };
+        IplImage cropped = doDetectFace(  smallImg,fractionFace);
+        if(cropped == null)
+            return null;
         IplImage resizedImage = IplImage.create(FACE_WIDTH, FACE_HEIGHT, cropped.depth(), cropped.nChannels());
         cvResize(cropped, resizedImage);
         int size = resizedImage.imageSize();
@@ -357,7 +371,68 @@ public class OpenCVUtilities {
     }
 
 
- 
+
+
+
+    public static void saveAndVerifyCroppedImage(File imageFile, File saveDir, File badSaveDir,opencv_face.FaceRecognizer   checker) {
+        try {
+            System.out.println(imageFile.getAbsolutePath());
+            IplImage smallImg = normailzedImage(imageFile);
+
+            double[] fractionFace =  { 0 };
+
+            IplImage cropped = doDetectFace(  smallImg,fractionFace);
+            if(cropped == null)
+                return;
+            IplImage resizedImage = IplImage.create(FACE_WIDTH, FACE_HEIGHT, cropped.depth(), cropped.nChannels());
+            cvResize(cropped, resizedImage);
+
+            // equalize the small grayscale
+            cvEqualizeHist(resizedImage, resizedImage);
+
+            int size = resizedImage.imageSize();
+
+            File tempFile = new File("/tempImage.jpg");
+            cvSaveImage(tempFile.getAbsolutePath(),resizedImage) ;
+            Mat testImage = imread(tempFile.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
+            boolean imageIsOk = checkImage(testImage,checker,fractionFace[0]);
+            testImage.release();
+
+            File saveFile = new File(saveDir,imageFile.getName());
+            if(!imageIsOk)
+                saveFile = new File(badSaveDir,imageFile.getName());
+
+            cvSaveImage(saveFile.getAbsolutePath(),resizedImage) ;
+            cropped.release();
+        } catch (RuntimeException e) {
+            e.printStackTrace();    // ignore we expect a few errors
+            return;
+
+        }
+    }
+
+
+    public static final double BAD_CONFIDENCE_CUTOFF =  105;
+    public static final double MINIMUM_FACE_FRACTION =  0.25;
+    public static boolean checkImage(Mat testImage,opencv_face.FaceRecognizer   checker, double faceFraction) {
+         opencv_face.StandardCollector standardCollector = opencv_face.StandardCollector.create();
+        checker.predict_collect(testImage,standardCollector);
+        IntDoublePairVector results = standardCollector.getResults(true);
+        long size = results.size();
+
+          double confidence  =  results.second(0) ;
+        System.out.println("Confidence " + confidence + " fraction " + faceFraction);
+
+        if(confidence > BAD_CONFIDENCE_CUTOFF)
+            return false;
+        if(faceFraction < MINIMUM_FACE_FRACTION)
+            return false;
+
+        return true;
+
+
+
+    }
 
 
     public static void saveCroppedImage(File imageFile, File saveDir) {
@@ -365,13 +440,16 @@ public class OpenCVUtilities {
             System.out.println(imageFile.getAbsolutePath());
             IplImage smallImg = normailzedImage(imageFile);
 
-            IplImage cropped = doDetectFace(  smallImg);
+            double[] fractionFace =  { 0 };
+            IplImage cropped = doDetectFace(  smallImg,fractionFace);
+            if(cropped == null)
+                return  ;
             IplImage resizedImage = IplImage.create(FACE_WIDTH, FACE_HEIGHT, cropped.depth(), cropped.nChannels());
             cvResize(cropped, resizedImage);
 
             // equalize the small grayscale
             cvEqualizeHist(resizedImage, resizedImage);
-            
+
             int size = resizedImage.imageSize();
 
             File saveFile = new File(saveDir,imageFile.getName());
@@ -391,7 +469,10 @@ public class OpenCVUtilities {
             System.out.println(imageFile.getAbsolutePath());
             IplImage smallImg = normailzedImage(imageFile);
 
-            IplImage cropped = doDetectFace(  smallImg);
+            double[] fractionFace =  { 0 };
+            IplImage cropped = doDetectFace(  smallImg,fractionFace);
+            if(cropped == null)
+                return false;
             IplImage resizedImage = IplImage.create(FACE_WIDTH, FACE_HEIGHT, cropped.depth(), cropped.nChannels());
             cvResize(cropped, resizedImage);
 

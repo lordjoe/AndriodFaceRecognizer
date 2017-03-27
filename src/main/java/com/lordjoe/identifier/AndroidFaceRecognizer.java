@@ -51,6 +51,16 @@ import org.bytedeco.javacpp.opencv_core.MatVector;
  * com.lordjoe.identifier.FaceRecognizer
  * User: Steve
  * Date: 3/13/2017
+ * *
+ * Sample command line
+ * T:\training\ifw_20_training T:\training\combined_test ifw_faces.xml T:\training\caltech_training
+ * arg 0 directory treining set
+ * arg 1 directory test set
+ * arg 2 save file - if present do not train if not train
+ * arg 3 faces not in the training set - update and try again with these - should not recognize than recognize after update
+ *   these are the training set for the new faces nopt the test set
+ *
+
  */
 public class AndroidFaceRecognizer {
 
@@ -223,7 +233,14 @@ public class AndroidFaceRecognizer {
 
     /**
      * creates and saves a face recognizer also may test
+     *  * *
+     * Sample command line
+     T:\training\ifw_20_training T:\training\combined_test ifw_faces.xml T:\training\caltech_training
      * @param args
+     * 0 training directory
+     * 1 test directory - labeled images
+     * 2 xml saved file - if not present will be created
+     * 3 training directory with training images for testset not in the original subset
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {

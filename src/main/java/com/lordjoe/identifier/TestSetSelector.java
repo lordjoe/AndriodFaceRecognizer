@@ -14,6 +14,17 @@ import static com.lordjoe.identifier.OpenCVUtilities.getLabelFromFile;
  * User: Steve
  * Date: 3/17/2017
  * ifw 5749 Failures 279
+ *
+ * *
+ * Sample command line
+ * T:\training\caltech_training   T:\training\caltech_test 5
+ * arg 0 saved directory with labeled cropped faces
+ * arg 1 directory of   test images
+ * arg 2 number test cases
+ * select a  number test cases from the set of files in the source directory and move them to the test directory
+ * NOTE - start with ALL images in the source directory and and with a test and training set
+ *
+
  */
 public class TestSetSelector {
     public static final TestSetSelector[] EMPTY_ARRAY = {};
