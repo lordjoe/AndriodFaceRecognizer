@@ -4,8 +4,7 @@ import org.bytedeco.javacpp.*;
 
 import java.io.*;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
+
 import java.util.*;
 
 import static org.bytedeco.javacpp.helper.opencv_objdetect.cvHaarDetectObjects;
@@ -16,7 +15,7 @@ import static org.bytedeco.javacpp.opencv_face.createLBPHFaceRecognizer;
 import static org.bytedeco.javacpp.opencv_imgcodecs.*;
 import static org.bytedeco.javacpp.opencv_imgproc.*;
 import static org.bytedeco.javacpp.opencv_objdetect.CV_HAAR_DO_CANNY_PRUNING;
-import java.awt.image.BufferedImage;
+
 import java.util.Arrays;
 
 import org.bytedeco.javacpp.avcodec;
@@ -45,7 +44,14 @@ public class OpenCVUtilities {
     private static opencv_objdetect.CascadeClassifier faceDetector;
     private static CvMemStorage storage;
 //    private static OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
+     private static OpenCVFrameConverter.ToMat converter;
 
+    private static synchronized OpenCVFrameConverter getConverter()
+    {
+        if(converter == null)
+            converter = new OpenCVFrameConverter.ToMat();
+        return converter;
+    }
 
     private static boolean isLoaded = false;
 
@@ -193,14 +199,14 @@ public class OpenCVUtilities {
     {
         if(true)
             return;
-        System.out.print (message + " ");
-          long physicalBytes = Pointer.availablePhysicalBytes();
-        System.out.print ("Free memory: " +
-                physicalBytes);
-    /* This will return Long.MAX_VALUE if there is no preset limit */
-        long maxMemory =  Pointer.maxPhysicalBytes();
-  /* Maximum amount of memory the JVM will attempt to use */
-        System.out.println(" Maximum memory: " +  maxMemory);
+//        System.out.print (message + " ");
+//          long physicalBytes = Pointer.availablePhysicalBytes();
+//        System.out.print ("Free memory: " +
+//                physicalBytes);
+//    /* This will return Long.MAX_VALUE if there is no preset limit */
+//        long maxMemory =  Pointer.maxPhysicalBytes();
+//  /* Maximum amount of memory the JVM will attempt to use */
+//        System.out.println(" Maximum memory: " +  maxMemory);
     }
 
 
@@ -306,15 +312,25 @@ public class OpenCVUtilities {
     }
 
     public static void copyFile(File src,File dst)   {
+        InputStream is = null;
+        OutputStream os = null;
         try {
-            Files.copy(src.toPath(),
-                   dst.toPath(),
-                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-                    java.nio.file.StandardCopyOption.COPY_ATTRIBUTES,
-                    java.nio.file.LinkOption.NOFOLLOW_LINKS);
+            is = new FileInputStream(src);
+            os = new FileOutputStream(dst);
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = is.read(buffer)) > 0) {
+                os.write(buffer, 0, length);
+            }
         } catch (IOException e) {
-            throw new RuntimeException(e);
-
+                throw new RuntimeException(e);
+        } finally {
+            try {
+                is.close();
+                os.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -415,12 +431,16 @@ public class OpenCVUtilities {
     public static final double BAD_CONFIDENCE_CUTOFF =  105;
     public static final double MINIMUM_FACE_FRACTION =  0.25;
     public static boolean checkImage(Mat testImage,opencv_face.FaceRecognizer   checker, double faceFraction) {
-         opencv_face.StandardCollector standardCollector = opencv_face.StandardCollector.create();
-        checker.predict_collect(testImage,standardCollector);
-        IntDoublePairVector results = standardCollector.getResults(true);
-        long size = results.size();
+//         opencv_face.StandardCollector standardCollector = opencv_face.StandardCollector.create();
+//        checker.predict_collect(testImage,standardCollector);
+//        IntDoublePairVector results = standardCollector.getResults(true);
+//        long size = results.size();
+//
+//          double confidence  =  results.second(0) ;
 
-          double confidence  =  results.second(0) ;
+        opencv_face.MinDistancePredictCollector collector = new opencv_face.MinDistancePredictCollector(1);
+        checker.predict(testImage,collector);
+        double confidence = collector.getDist();
         System.out.println("Confidence " + confidence + " fraction " + faceFraction);
 
         if(confidence > BAD_CONFIDENCE_CUTOFF)
@@ -520,13 +540,20 @@ public class OpenCVUtilities {
     }
 
     public static void doPredict(Mat testImage, opencv_face.FaceRecognizer faceRecognizer) {
-        opencv_face.StandardCollector standardCollector = opencv_face.StandardCollector.create();
-        faceRecognizer.predict_collect(testImage,standardCollector);
-        IntDoublePairVector results = standardCollector.getResults(true);
-        for (int i = 0; i < results.size(); i++) {
-            int index =  results.first(i) ;
-            double confidence =  results.second(i) ;
-            System.out.println("index " + index + " confidence " + confidence);
+//        opencv_face.StandardCollector standardCollector = opencv_face.StandardCollector.create();
+//        faceRecognizer.predict_collect(testImage,standardCollector);
+//        IntDoublePairVector results = standardCollector.getResults(true);
+
+        opencv_face.MinDistancePredictCollector collector = new opencv_face.MinDistancePredictCollector(4);
+        faceRecognizer.predict(testImage,collector);
+
+        for (int i = 0; i < collector.sizeof(); i++) {
+            collector.position(i);
+            int index = collector.getLabel();
+            double confidence = collector.getDist();
+//            int index =  results.first(i) ;
+//            double confidence =  results.second(i) ;
+           System.out.println("index " + index + " confidence " + confidence);
 
         }
     }
@@ -543,16 +570,28 @@ public class OpenCVUtilities {
         Mat testImage = imread(testFile.getAbsolutePath(), CV_LOAD_IMAGE_GRAYSCALE);
         String name = testFile.getName();
         int fileIndex  =  indexFromTestName(name);
-        opencv_face.StandardCollector standardCollector = opencv_face.StandardCollector.create();
-        faceRecognizer.predict_collect(testImage,standardCollector);
-        IntDoublePairVector results = standardCollector.getResults(true);
-        long size = results.size();
-        for (int i = 0; i <  size ; i++) {
-            int index =  results.first(i) ;
-            double confidence  =  results.second(i) ;
+//        opencv_face.StandardCollector standardCollector = opencv_face.StandardCollector.create();
+//        faceRecognizer.predict_collect(testImage,standardCollector);
+//        IntDoublePairVector results = standardCollector.getResults(true);
+//        long size = results.size();
+//        for (int i = 0; i <  size ; i++) {
+//            int index =  results.first(i) ;
+//            double confidence  =  results.second(i) ;
+//            holder.add(new IdentificationResult(name,index,confidence));
+//
+//        }
+
+        opencv_face.MinDistancePredictCollector collector = new opencv_face.MinDistancePredictCollector(4);
+        faceRecognizer.predict(testImage,collector);
+
+        for (int i = 0; i < collector.sizeof(); i++) {
+            collector.position(i);
+            int index = collector.getLabel();
+            double confidence = collector.getDist();
             holder.add(new IdentificationResult(name,index,confidence));
 
         }
+
         Collections.sort(holder);
           List<IdentificationResult> ret = new ArrayList<>();
         for (int i = 0; i < Math.min(retainedResults,holder.size()); i++) {
@@ -576,16 +615,20 @@ public class OpenCVUtilities {
 
     public static boolean verifyIdentity(Mat testImage, opencv_face.FaceRecognizer faceRecognizer,double[] confidence,int[] position , int testIndex) {
         final int numberFaces = faceRecognizer.sizeof();
-        opencv_face.StandardCollector standardCollector = opencv_face.StandardCollector.create();
-        faceRecognizer.predict_collect(testImage,standardCollector);
-        IntDoublePairVector results = standardCollector.getResults(true);
-        long size = results.size();
+        opencv_face.MinDistancePredictCollector collector = new opencv_face.MinDistancePredictCollector(3);
+        faceRecognizer.predict(testImage,collector);
+//        opencv_face.StandardCollector standardCollector = opencv_face.StandardCollector.create();
+//        faceRecognizer.predict_collect(testImage,standardCollector);
+//        IntDoublePairVector results = standardCollector.getResults(true);
+
+        long size = collector.sizeof();
+
         int minAccepted = (int)Math.max(1,MIN_ACCEPTED_FRACTION * size) ;
         for (int i = 0; i <  size ; i++) {
-            int index =  results.first(i) ;
-            position[0] = i;
-            confidence[0] =  results.second(i) ;
-            if(index == testIndex)
+            collector.position(i);
+             position[0] = collector.getLabel();
+            confidence[0] =  collector.getDist() ;
+            if(collector.getLabel() == testIndex)
                 return i < minAccepted; // identified
 
         }
@@ -605,14 +648,14 @@ public class OpenCVUtilities {
         FrameGrabber grabber = new OpenCVFrameGrabber(fileName);
         try {
             grabber.start();
-            IplImage grab  = grabber.grab();
-               for (int i = 0; i < DROPPED_FRAMES; i++) {
-                  grab = grabber.grab();
+            Frame grab1 = grabber.grab();
+                 for (int i = 0; i < DROPPED_FRAMES; i++) {
+                     grab1 = grabber.grab();
                 }
 
             while(ret.size() < SAVED_FRAMES)  {
-                grab = grabber.grab();
-                Mat mattemp = new Mat(grab.address());
+                grab1 = grabber.grab();
+                  Mat mattemp = getConverter().convertToMat(grab1);
                 ret.add(mattemp);
                 delay(FRAME_DELAY);
 
@@ -635,7 +678,7 @@ public class OpenCVUtilities {
         try {
             for (File file : filesWithLabel) {
                 File newFile = new File(outDir,file.getName());
-                Files.move(file.toPath(),newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                file.renameTo(newFile);
             }
         } catch (java.lang.Exception e) {
             throw new RuntimeException(e);
@@ -647,7 +690,7 @@ public class OpenCVUtilities {
         try {
             for (File file : filesWithLabel) {
                 File newFile = new File(outDir,file.getName());
-                Files.copy(file.toPath(),newFile.toPath());
+                copyFile(file,newFile);
             }
         } catch (java.lang.Exception e) {
             throw new RuntimeException(e);
