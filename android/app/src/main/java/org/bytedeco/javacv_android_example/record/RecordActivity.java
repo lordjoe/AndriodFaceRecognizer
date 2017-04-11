@@ -5,9 +5,9 @@ import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.hardware.Camera;
 import android.hardware.Camera.PreviewCallback;
-import android.media.AudioFormat;
-import android.media.AudioRecord;
-import android.media.MediaRecorder;
+
+
+
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.PowerManager;
@@ -21,11 +21,14 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 
 import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.Frame;
+
+import com.lordjoe.identifier.RecognizerFrameRecorder;
 import org.bytedeco.javacv_android_example.R;
 
 import java.io.File;
@@ -53,26 +56,25 @@ public class RecordActivity extends Activity implements OnClickListener {
     private final int live_height = 480;
     long startTime = 0;
     boolean recording = false;
-    volatile boolean runAudioThread = true;
+
     Frame[] images;
     long[] timestamps;
     ShortBuffer[] samples;
     int imagesIndex, samplesIndex;
     private PowerManager.WakeLock mWakeLock;
     private File ffmpeg_link = new File(Environment.getExternalStorageDirectory(), "stream.mp4");
-    private FFmpegFrameRecorder recorder;
+    private RecognizerFrameRecorder recorder;
     private boolean isPreviewOn = false;
     private int sampleAudioRateInHz = 44100;
-    private int imageWidth = 320;
-    private int imageHeight = 240;
+    private int imageWidth = 250; // 320;
+    private int imageHeight = 150; // 240;
     private int frameRate = 30;
-    /* audio data getting thread */
-    private AudioRecord audioRecord;
-    private AudioRecordRunnable audioRecordRunnable;
-    private Thread audioThread;
-    /* video data getting thread */
-    private Camera cameraDevice;
+      /* video data getting thread */
+    private Camera  cameraDevice; // latest is  CameraDevice
     private CameraView cameraView;
+    private ImageView processView;
+    private ImageView faceView;
+
     private Frame yuvImage = null;
     private int screenWidth, screenHeight;
     private Button btnRecorderControl;
@@ -123,9 +125,9 @@ public class RecordActivity extends Activity implements OnClickListener {
         }
 
         if(cameraDevice != null) {
-            cameraDevice.stopPreview();
+             cameraDevice.stopPreview();
             cameraDevice.release();
-            cameraDevice = null;
+           cameraDevice = null;
         }
 
         if(mWakeLock != null) {
@@ -181,16 +183,38 @@ public class RecordActivity extends Activity implements OnClickListener {
             prev_rw = display_width_d;
             prev_rh = (int) (1.0 * display_width_d * live_height / live_width);
         }
-        layoutParam = new RelativeLayout.LayoutParams(prev_rw, prev_rh);
+        layoutParam = new RelativeLayout.LayoutParams(prev_rw / 2, prev_rh);
         layoutParam.topMargin = (int) (1.0 * bg_screen_by * screenHeight / bg_height);
         layoutParam.leftMargin = (int) (1.0 * bg_screen_bx * screenWidth / bg_width);
 
         cameraDevice = Camera.open();
         Log.i(LOG_TAG, "cameara open");
         cameraView = new CameraView(this, cameraDevice);
+        cameraDevice.setPreviewCallback(new MyCallback());
         topLayout.addView(cameraView, layoutParam);
-        Log.i(LOG_TAG, "cameara preview start: OK");
+
+            layoutParam = new RelativeLayout.LayoutParams(prev_rw / 2, prev_rh);
+            layoutParam.addRule( RelativeLayout.START_OF);
+            processView = new ImageView(this);
+            topLayout.addView(processView, layoutParam);
+
+        if(false) {
+            layoutParam = new RelativeLayout.LayoutParams(prev_rw, prev_rh);
+            faceView = new ImageView(this);
+            topLayout.addView(faceView
+                    , layoutParam);
+
+        }
+        Log.e(LOG_TAG, "cameara preview start: OK");
     }
+
+     private class MyCallback implements PreviewCallback {
+
+        @Override
+        public void onPreviewFrame(byte[] data, Camera camera) {
+
+        }
+  }
 
     //---------------------------------------
     // initialize ffmpeg_recorder
@@ -213,7 +237,7 @@ public class RecordActivity extends Activity implements OnClickListener {
         }
 
         Log.i(LOG_TAG, "ffmpeg_url: " + ffmpeg_link.getAbsolutePath());
-        recorder = new FFmpegFrameRecorder(ffmpeg_link, imageWidth, imageHeight, 1);
+        recorder = new RecognizerFrameRecorder(ffmpeg_link, imageWidth, imageHeight );
         recorder.setFormat("mp4");
         recorder.setSampleRate(sampleAudioRateInHz);
         // Set in the surface changed method
@@ -221,9 +245,9 @@ public class RecordActivity extends Activity implements OnClickListener {
 
         Log.i(LOG_TAG, "recorder initialize success");
 
-        audioRecordRunnable = new AudioRecordRunnable();
-        audioThread = new Thread(audioRecordRunnable);
-        runAudioThread = true;
+//        audioRecordRunnable = new AudioRecordRunnable();
+//        audioThread = new Thread(audioRecordRunnable);
+//        runAudioThread = true;
     }
 
     public void startRecording() {
@@ -233,22 +257,13 @@ public class RecordActivity extends Activity implements OnClickListener {
             recorder.start();
             startTime = System.currentTimeMillis();
             recording = true;
-            audioThread.start();
-        } catch(FFmpegFrameRecorder.Exception e) {
+          } catch(FFmpegFrameRecorder.Exception e) {
             e.printStackTrace();
         }
     }
 
     public void stopRecording() {
 
-        runAudioThread = false;
-        try {
-            audioThread.join();
-        } catch(InterruptedException e) {
-            e.printStackTrace();
-        }
-        audioRecordRunnable = null;
-        audioThread = null;
 
         if(recorder != null && recording) {
             if(RECORD_LENGTH > 0) {
@@ -286,7 +301,7 @@ public class RecordActivity extends Activity implements OnClickListener {
                         lastIndex += samples.length;
                     }
                     for(int i = firstIndex; i <= lastIndex; i++) {
-                        recorder.recordSamples(samples[i % samples.length]);
+                        recorder.stop();
                     }
                 } catch(FFmpegFrameRecorder.Exception e) {
                     Log.v(LOG_TAG, e.getMessage());
@@ -320,75 +335,75 @@ public class RecordActivity extends Activity implements OnClickListener {
         }
     }
 
-    //---------------------------------------------
-    // audio thread, gets and encodes audio data
-    //---------------------------------------------
-    class AudioRecordRunnable implements Runnable {
-
-        @Override
-        public void run() {
-            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
-
-            // Audio
-            int bufferSize;
-            ShortBuffer audioData;
-            int bufferReadResult;
-
-            bufferSize = AudioRecord.getMinBufferSize(sampleAudioRateInHz,
-                                                      AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-            audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleAudioRateInHz,
-                                          AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize);
-
-            if(RECORD_LENGTH > 0) {
-                samplesIndex = 0;
-                samples = new ShortBuffer[RECORD_LENGTH * sampleAudioRateInHz * 2 / bufferSize + 1];
-                for(int i = 0; i < samples.length; i++) {
-                    samples[i] = ShortBuffer.allocate(bufferSize);
-                }
-            } else {
-                audioData = ShortBuffer.allocate(bufferSize);
-            }
-
-            Log.d(LOG_TAG, "audioRecord.startRecording()");
-            audioRecord.startRecording();
-
-            /* ffmpeg_audio encoding loop */
-            while(runAudioThread) {
-                if(RECORD_LENGTH > 0) {
-                    audioData = samples[samplesIndex++ % samples.length];
-                    audioData.position(0).limit(0);
-                }
-                //Log.v(LOG_TAG,"recording? " + recording);
-                bufferReadResult = audioRecord.read(audioData.array(), 0, audioData.capacity());
-                audioData.limit(bufferReadResult);
-                if(bufferReadResult > 0) {
-                    Log.v(LOG_TAG, "bufferReadResult: " + bufferReadResult);
-                    // If "recording" isn't true when start this thread, it never get's set according to this if statement...!!!
-                    // Why?  Good question...
-                    if(recording) {
-                        if(RECORD_LENGTH <= 0) {
-                            try {
-                                recorder.recordSamples(audioData);
-                                //Log.v(LOG_TAG,"recording " + 1024*i + " to " + 1024*i+1024);
-                            } catch(FFmpegFrameRecorder.Exception e) {
-                                Log.v(LOG_TAG, e.getMessage());
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                }
-            }
-            Log.v(LOG_TAG, "AudioThread Finished, release audioRecord");
-
-            /* encoding finish, release recorder */
-            if(audioRecord != null) {
-                audioRecord.stop();
-                audioRecord.release();
-                audioRecord = null;
-                Log.v(LOG_TAG, "audioRecord released");
-            }
-        }
-    }
+//    //---------------------------------------------
+//    // audio thread, gets and encodes audio data
+//    //---------------------------------------------
+//    class AudioRecordRunnable implements Runnable {
+//
+//        @Override
+//        public void run() {
+//            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
+//
+//            // Audio
+//            int bufferSize;
+//            ShortBuffer audioData;
+//            int bufferReadResult;
+//
+//            bufferSize = AudioRecord.getMinBufferSize(sampleAudioRateInHz,
+//                                                      AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+//            audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleAudioRateInHz,
+//                                          AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize);
+//
+//            if(RECORD_LENGTH > 0) {
+//                samplesIndex = 0;
+//                samples = new ShortBuffer[RECORD_LENGTH * sampleAudioRateInHz * 2 / bufferSize + 1];
+//                for(int i = 0; i < samples.length; i++) {
+//                    samples[i] = ShortBuffer.allocate(bufferSize);
+//                }
+//            } else {
+//                audioData = ShortBuffer.allocate(bufferSize);
+//            }
+//
+//            Log.d(LOG_TAG, "audioRecord.startRecording()");
+//            audioRecord.startRecording();
+//
+//            /* ffmpeg_audio encoding loop */
+//            while(runAudioThread) {
+//                if(RECORD_LENGTH > 0) {
+//                    audioData = samples[samplesIndex++ % samples.length];
+//                    audioData.position(0).limit(0);
+//                }
+//                //Log.v(LOG_TAG,"recording? " + recording);
+//                bufferReadResult = audioRecord.read(audioData.array(), 0, audioData.capacity());
+//                audioData.limit(bufferReadResult);
+//                if(bufferReadResult > 0) {
+//                    Log.v(LOG_TAG, "bufferReadResult: " + bufferReadResult);
+//                    // If "recording" isn't true when start this thread, it never get's set according to this if statement...!!!
+//                    // Why?  Good question...
+//                    if(recording) {
+//                        if(RECORD_LENGTH <= 0) {
+//                            try {
+//                                recorder.recordSamples(audioData);
+//                                //Log.v(LOG_TAG,"recording " + 1024*i + " to " + 1024*i+1024);
+//                            } catch(FFmpegFrameRecorder.Exception e) {
+//                                Log.v(LOG_TAG, e.getMessage());
+//                                e.printStackTrace();
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//            Log.v(LOG_TAG, "AudioThread Finished, release audioRecord");
+//
+//            /* encoding finish, release recorder */
+//            if(audioRecord != null) {
+//                audioRecord.stop();
+//                audioRecord.release();
+//                audioRecord = null;
+//                Log.v(LOG_TAG, "audioRecord released");
+//            }
+//        }
+//    }
 
     //---------------------------------------------
     // camera thread, gets and encodes video data
@@ -477,11 +492,7 @@ public class RecordActivity extends Activity implements OnClickListener {
 
         @Override
         public void onPreviewFrame(byte[] data, Camera camera) {
-            if(audioRecord == null || audioRecord.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
-                startTime = System.currentTimeMillis();
-                return;
-            }
-            if(RECORD_LENGTH > 0) {
+               if(RECORD_LENGTH > 0) {
                 int i = imagesIndex++ % images.length;
                 yuvImage = images[i];
                 timestamps[i] = 1000 * (System.currentTimeMillis() - startTime);

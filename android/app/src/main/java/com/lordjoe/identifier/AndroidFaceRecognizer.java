@@ -3,6 +3,7 @@ package com.lordjoe.identifier;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+
 import java.nio.IntBuffer;
 import java.util.*;
 
@@ -257,6 +258,7 @@ public class AndroidFaceRecognizer {
 //            new ProcessBuilder("c:/scripts/depends.exe", path).start().waitFor();
 //        }
 
+        OpenCVUtilities.guaranteeLoaded();
         String trainingDir = args[0];
         Map<Integer,List<File>> trainingSet = findFilesWithLabel( new File(trainingDir));
 
