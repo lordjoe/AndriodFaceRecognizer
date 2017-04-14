@@ -27,6 +27,7 @@ public class RegisteredPersonSet {
 
     private final Map<Integer,RegisteredPerson> registeredPeople = new HashMap<>();
     private final Map<String,RegisteredPerson> registeredNames = new HashMap<>();
+    private final List<RegisteredPerson> people = new ArrayList<>();
     private final File storeDirectory;
     private final opencv_face.FaceRecognizer recognizer;
     private final FaceRecognizerType type;
@@ -113,9 +114,8 @@ public class RegisteredPersonSet {
     public List<File> getTrainingFiles()
     {
         List<File> ret = new ArrayList<>();
-        for (Integer key : registeredPeople.keySet()) {
-            RegisteredPerson registeredPerson = registeredPeople.get(key);
-            List<File> sampleImages = registeredPerson.getSampleImages();
+        for (RegisteredPerson registeredPerson : people) {
+             List<File> sampleImages = registeredPerson.getSampleImages();
             ret.addAll(sampleImages);
         }
         return ret;
@@ -125,9 +125,6 @@ public class RegisteredPersonSet {
         return type.isTrainable();
     }
 
-    public Map<Integer, RegisteredPerson> getRegisteredPeople() {
-        return registeredPeople;
-    }
 
     public File getStoreDirectory() {
         return storeDirectory;
@@ -142,11 +139,14 @@ public class RegisteredPersonSet {
     }
 
     public Integer findUnusedId()    {
-         int ret = 1;
-         while(registeredPeople.containsKey(ret))    {
-             ret++;
-         }
-         return ret;
+        return findUnusedId(1);
+    }
+
+    public Integer findUnusedId(int ret)    {
+          while(registeredPeople.containsKey(ret))    {
+            ret++;
+        }
+        return ret;
     }
 
     public  RegisteredPerson addPerson(String name,File imageDirectory)
@@ -214,6 +214,7 @@ public class RegisteredPersonSet {
         RegisteredPerson person = new RegisteredPerson(name,id,examplar,images); //makeRegisteredPerson(name,  id,examplar, images);
         registeredPeople.put(id,person) ;
         registeredNames.put(name,person) ;
+        people.add(person);
         return person;
 
     }
@@ -269,6 +270,14 @@ public class RegisteredPersonSet {
         File storeDirectory = ret.storeDirectory;
         return ret;
 
+    }
+
+    public int size() {
+        return people.size();
+    }
+
+    public RegisteredPerson getPerson(int index) {
+        return people.get(index);
     }
 //
 //    private static void createCaltechPersonSet(String[] args) {

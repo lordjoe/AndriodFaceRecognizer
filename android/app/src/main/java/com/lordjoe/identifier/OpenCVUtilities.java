@@ -1,5 +1,14 @@
 package com.lordjoe.identifier;
 
+import android.Manifest;
+import android.app.Activity;
+import android.content.ContextWrapper;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.os.Environment;
+import android.support.v4.app.ActivityCompat;
+import android.util.Log;
+
 import org.bytedeco.javacpp.*;
 
 import java.io.*;
@@ -41,6 +50,7 @@ public class OpenCVUtilities {
 
     public static final Random RND = new Random();
     public static final int READ_BLOCK = 100000;
+    public static final String FACE_RECOGNITION_NAME = "FaceRecognition";
     public static final String HAAR_CLASSIFIER_RESOURCE2 = "com.lordjoe.identifier.haarcascade_frontalface_alt.xml";
     public static final String HAAR_CLASSIFIER_RESOURCE = "haarcascade_frontalface_alt.xml";
     private static opencv_objdetect.CvHaarClassifierCascade cascade;
@@ -49,6 +59,23 @@ public class OpenCVUtilities {
 //    private static OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
      private static OpenCVFrameConverter.ToMat converter;
 
+    public static ContextWrapper getAppContext() {
+        return AppContext;
+    }
+
+    public static void setAppContext(ContextWrapper appContext) {
+        AppContext = appContext;
+    }
+
+    private static ContextWrapper AppContext;
+
+
+    // Storage Permissions
+    private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private static String[] PERMISSIONS_STORAGE = {
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
 
     private static boolean isLoaded = false;
 
@@ -196,12 +223,14 @@ public class OpenCVUtilities {
     }
 
 
-    private static void loadFaceDetector() {
+    public static void loadFaceDetector() {
         guaranteeLoaded();
         showFreeMemory("Before Face Detector Load");
-        URL resource = OpenCVUtilities.class.getResource(HAAR_CLASSIFIER_RESOURCE);
-        File file = new File(resource.getFile());
-        String path = file.getAbsolutePath();
+       // URL resource = OpenCVUtilities.class.getResource(HAAR_CLASSIFIER_RESOURCE);
+       // File file = new File(resource.getFile());
+
+        File file = getDataFile(HAAR_CLASSIFIER_RESOURCE,null);
+                String path = file.getAbsolutePath();
         faceDetector = new opencv_objdetect.CascadeClassifier(
                 cvLoad(path));
         showFreeMemory("After Face Detector Load");
@@ -605,8 +634,7 @@ public class OpenCVUtilities {
     /**
      * return the top retainedResults  of File TestFile by  faceRecognizer
      *
-     * @param testFile
-     * @param faceRecognizer
+       * @param faceRecognizer
      * @param retainedResults
      * @return
      */
@@ -738,6 +766,108 @@ public class OpenCVUtilities {
 
         }
 
+    }
+
+//    /**
+//     * Checks if the app has permission to write to device storage
+//     * <p>
+//     * If the app does not has permission then the user will be prompted to grant permissions
+//     *
+//     * @param activity
+//     */
+//    public static void verifyStoragePermissions(Activity activity) {
+//        // Check if we have write permission
+//        int permission = ActivityCompat.(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+//
+//        if (permission != PackageManager.PERMISSION_GRANTED) {
+//            // We don't have permission so prompt the user
+//            ActivityCompat.requestPermissions(
+//                    activity,
+//                    PERMISSIONS_STORAGE,
+//                    REQUEST_EXTERNAL_STORAGE
+//            );
+//        }
+//        permission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.READ_EXTERNAL_STORAGE);
+//
+//        if (permission != PackageManager.PERMISSION_GRANTED) {
+//            // We don't have permission so prompt the user
+//            ActivityCompat.requestPermissions(
+//                    activity,
+//                    PERMISSIONS_STORAGE,
+//                    REQUEST_EXTERNAL_STORAGE
+//            );
+//        }
+//    }
+
+    public static File getDataRoot() {
+        ContextWrapper appContext = getAppContext();
+        return appContext.getExternalFilesDir(null);
+    }
+
+    public static File getRecognitionRoot() {
+        return getDataFile(FACE_RECOGNITION_NAME, getDataRoot());
+    }
+
+    public static File getDataFile(String name, File dir) {
+        if (dir == null)
+            dir =  getDataRoot(); //getAppContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+        return new File(dir, name);
+    }
+
+    public static void writeTextFile(String fileName, String text) {
+        File dataRoot = getDataRoot();
+        writeTextFile(dataRoot, fileName, text);
+    }
+
+
+    public static void writeTextFile(File dir, String fileName, String text) {
+        BufferedWriter writer = null;
+        try {
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+
+            //create a temporary file
+            File logFile = new File(dir, fileName);
+            boolean preExisting = logFile.exists();
+
+            // This will output the full path where the file will be written to...
+            Log.e("outFile", logFile.getAbsolutePath());
+
+            writer = new BufferedWriter(new FileWriter(logFile));
+            writer.write(text);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } finally {
+            try {
+                // Close the writer regardless of what happens...
+                writer.close();
+            } catch (IOException e) {
+            }
+        }
+    }
+
+
+    public static String readTextFile(File f) {
+        StringBuilder sb = new StringBuilder();
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("file.txt"));
+            try {
+                String line = br.readLine();
+
+                while (line != null) {
+                    sb.append(line);
+                    sb.append(System.lineSeparator());
+                    line = br.readLine();
+                }
+                String everything = sb.toString();
+            } finally {
+                br.close();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return sb.toString();
     }
 
 

@@ -1,4 +1,4 @@
-package org.bytedeco.javacv_android_example.record;
+package com.lordjoe.identifier.android;
 
 import android.app.Activity;
 import android.content.Context;
@@ -28,8 +28,8 @@ import android.widget.RelativeLayout;
 import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.Frame;
 
+import com.lordjoe.identifier.R;
 import com.lordjoe.identifier.RecognizerFrameRecorder;
-import org.bytedeco.javacv_android_example.R;
 
 import java.io.File;
 import java.io.IOException;
@@ -78,10 +78,12 @@ public class RecordActivity extends Activity implements OnClickListener {
     private Frame yuvImage = null;
     private int screenWidth, screenHeight;
     private Button btnRecorderControl;
+    private MainActivity activityParent;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        activityParent = MainActivity.getActiveInstance();
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
         setContentView(R.layout.activity_record);
@@ -96,6 +98,7 @@ public class RecordActivity extends Activity implements OnClickListener {
     @Override
     protected void onResume() {
         super.onResume();
+        activityParent = MainActivity.getActiveInstance();
 
         if(mWakeLock == null) {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
