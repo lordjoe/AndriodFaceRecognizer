@@ -28,6 +28,7 @@ import android.widget.TextView;
 import com.lordjoe.identifier.R;
 import com.lordjoe.identifier.RecognizerFrameRecorder;
 import com.lordjoe.identifier.RegisteredPerson;
+import com.lordjoe.identifier.RegisteredPersonSet;
 
 import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.Frame;
@@ -46,19 +47,6 @@ public class RegisteredPersonViewActivity extends Activity   {
     private final static String LOG_TAG = CLASS_LABEL;
 
     /* layout setting */
-    private final int bg_screen_bx = 232;
-    private final int bg_screen_by = 128;
-    private final int bg_screen_width = 700;
-    private final int bg_screen_height = 500;
-    private final int bg_width = 1123;
-    private final int bg_height = 715;
-    private final int live_width = 640;
-    private final int live_height = 480;
-    long startTime = 0;
-    boolean recording = false;
-
-    int imagesIndex, samplesIndex;
-
 
     private int imageWidth = 250; // 320;
     private int imageHeight = 150; // 240;
@@ -97,6 +85,9 @@ public class RegisteredPersonViewActivity extends Activity   {
 
 
         initLayout();
+        RegisteredPersonSet registeredPeople = activityParent.getRegisteredPeople();
+        RegisteredPerson p = registeredPeople.getPerson(0);
+         setPerson(p);
     }
 
 
@@ -115,8 +106,10 @@ public class RegisteredPersonViewActivity extends Activity   {
         LinearLayout preViewLayout = (LinearLayout) myInflate.inflate(R.layout.activity_record, null);
         layoutParam = new RelativeLayout.LayoutParams(screenWidth, screenHeight);
         topLayout.addView(preViewLayout, layoutParam);
-
-              Log.e(LOG_TAG, "cameara preview start: OK");
+        nameView =  (TextView)findViewById(R.id.personName);
+        exemplarView =  (ImageView)findViewById(R.id.personExemplar);
+        trainingView = (Spinner) findViewById(R.id.personImages);
+        Log.e(LOG_TAG, "cameara preview start: OK");
     }
 
      private class MyCallback implements PreviewCallback {

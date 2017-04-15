@@ -16,6 +16,7 @@ import com.lordjoe.identifier.RegisteredPersonSet;
 import java.io.File;
 
 import static com.lordjoe.identifier.OpenCVUtilities.getDataFile;
+import static com.lordjoe.identifier.OpenCVUtilities.getFaceClassifier;
 import static com.lordjoe.identifier.OpenCVUtilities.loadFaceDetector;
 
 public class MainActivity extends AppCompatActivity {
@@ -74,24 +75,28 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this, RecordActivity.class));
+                onSelectPerson();
             }
         });
         peopleSelect = (Spinner) findViewById(R.id.spinner);
         registeredPeople = null;
-         adapter = new PersonSelectorAdapter(this, R.layout.spinner_value_layout, textArray,registeredPeople);
+        adapter = new PersonSelectorAdapter(this, R.layout.spinner_value_layout, textArray,registeredPeople);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         // see http://stackoverflow.com/questions/5999262/populate-spinner-dynamically-in-android-from-edit-text
         peopleSelect.setAdapter(adapter);
-
 
     }
 
     public void onSelectPerson()
     {
+        if(adapter.getPeople() == null)
+            return;
+        Intent intent = new Intent(MainActivity.this, RegisteredPersonViewActivity.class);
+       startActivity(intent);
         Log.e("onSelectPerson","hit");
 
     }
+
 
     public void onRecord()
     {
@@ -106,9 +111,12 @@ public class MainActivity extends AppCompatActivity {
         File file = getDataFile("recognizedPeople",null);
         String path = file.getAbsolutePath();
 
-        registeredPeople = new RegisteredPersonSet(file, FaceRecognizerType.LBPHFaceFaces);
+        registeredPeople = new RegisteredPersonSet(file, FaceRecognizerType.LBPHFaceFaces );
         File storeDirectory = registeredPeople.getStoreDirectory();
-        Log.e("onRecognizer",storeDirectory.getAbsolutePath());
+        boolean exists = storeDirectory.exists();
+        String eStr = exists? "exists":"not there";
+        Log.e("onRecognizer",storeDirectory.getAbsolutePath() + " " + eStr);
+
         adapter.setPeople(registeredPeople);
 
     }
@@ -124,6 +132,6 @@ public class MainActivity extends AppCompatActivity {
     {
         if(adapter.getPeople() == null)
             return;
-        startActivity(new Intent(MainActivity.this, RecordActivity.class));
+        startActivity(new Intent(MainActivity.this, RegisteredPersonViewActivity.class));
     }
 }

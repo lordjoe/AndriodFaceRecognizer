@@ -27,6 +27,10 @@
         <activity
             android:name=".android.RecordActivity"
             android:screenOrientation="landscape"/>
+        <activity
+            android:name=".android.RegisteredPersonViewActivity"
+            />
+
     </application>
 
 </manifest>

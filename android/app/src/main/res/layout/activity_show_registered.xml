@@ -10,17 +10,18 @@
                >
 
     <TextView
+        android:id="@+id/personName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Identification Application:"/>
 
     <ImageView
-        android:id="@+id/btnRecord"
+        android:id="@+id/personExemplar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Record"/>
       <Spinner
-        android:id="@+id/spinner"
+        android:id="@+id/personImages"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         />

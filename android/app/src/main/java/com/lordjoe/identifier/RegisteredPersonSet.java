@@ -1,7 +1,10 @@
 package com.lordjoe.identifier;
 
+import android.util.Log;
+
 import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacpp.opencv_face;
+import org.bytedeco.javacpp.opencv_objdetect;
 
 import java.io.File;
 import java.nio.IntBuffer;
@@ -20,6 +23,7 @@ import static org.bytedeco.javacpp.opencv_imgcodecs.imread;
  * Date: 4/10/2017
  */
 public class RegisteredPersonSet {
+    public static final String TAG_NAME = "RegisteredPersonSet";
     public static final double MINIMUM_CONFIDENCE = 0.75;
     public static final String EXAMPLAR_STRING = "Exemplar";
     
@@ -30,13 +34,15 @@ public class RegisteredPersonSet {
     private final List<RegisteredPerson> people = new ArrayList<>();
     private final File storeDirectory;
     private final opencv_face.FaceRecognizer recognizer;
+    private final opencv_objdetect.CvHaarClassifierCascade haarClassifier;
     private final FaceRecognizerType type;
 
-    public RegisteredPersonSet(File storeDirectory,FaceRecognizerType type) {
+    public RegisteredPersonSet(File storeDirectory,FaceRecognizerType type ) {
         this.storeDirectory = storeDirectory;
         this.type = type;
         recognizer = OpenCVUtilities.createFaceRecognizerOfType(type);
-        buildFromFiles();
+        haarClassifier = OpenCVUtilities.getHaarClassifier();
+          buildFromFiles();
     }
 
     private void buildFromFiles() {
@@ -277,6 +283,7 @@ public class RegisteredPersonSet {
     }
 
     public RegisteredPerson getPerson(int index) {
+        Log.e(TAG_NAME,"register person");
         return people.get(index);
     }
 //
