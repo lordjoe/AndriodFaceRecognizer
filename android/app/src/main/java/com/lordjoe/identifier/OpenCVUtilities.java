@@ -800,8 +800,9 @@ public class OpenCVUtilities {
 //    }
 
     public static File getDataRoot() {
-        ContextWrapper appContext = getAppContext();
-        return appContext.getExternalFilesDir(null);
+        return Environment.getExternalStorageDirectory();
+//        ContextWrapper appContext = getAppContext();
+//        return appContext.getExternalFilesDir(null);
     }
 
     public static File getRecognitionRoot() {

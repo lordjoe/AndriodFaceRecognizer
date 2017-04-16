@@ -17,6 +17,7 @@ import java.io.File;
 
 import static com.lordjoe.identifier.OpenCVUtilities.getDataFile;
 import static com.lordjoe.identifier.OpenCVUtilities.getFaceClassifier;
+import static com.lordjoe.identifier.OpenCVUtilities.getRecognitionRoot;
 import static com.lordjoe.identifier.OpenCVUtilities.loadFaceDetector;
 
 public class MainActivity extends AppCompatActivity {
@@ -108,7 +109,7 @@ public class MainActivity extends AppCompatActivity {
     {
         loadFaceDetector();
         Log.e("onRecognizer","hit");
-        File file = getDataFile("recognizedPeople",null);
+        File file = new File(getRecognitionRoot(),"recognizedPeople");
         String path = file.getAbsolutePath();
 
         registeredPeople = new RegisteredPersonSet(file, FaceRecognizerType.LBPHFaceFaces );
@@ -122,9 +123,10 @@ public class MainActivity extends AppCompatActivity {
     }
     public void onTestFileSystem()
     {
-        OpenCVUtilities.writeTextFile("Test.txt","Mary Had A Little Lamb");
-        File root = this.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
-        Log.e("App Root",root.getAbsolutePath());
+        File recognitionRoot = getRecognitionRoot();
+        recognitionRoot.mkdirs();
+        OpenCVUtilities.writeTextFile(recognitionRoot,"Test.txt","Mary Had A Little Lamb");
+          Log.e("Recognotion Root",recognitionRoot.getAbsolutePath());
 
 
     }

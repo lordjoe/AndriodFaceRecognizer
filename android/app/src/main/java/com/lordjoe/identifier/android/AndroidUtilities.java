@@ -8,12 +8,16 @@ import org.bytedeco.javacpp.opencv_core;
 import org.bytedeco.javacv.FrameRecorder;
 
 import java.io.File;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * Created by Steve on 4/14/2017.
  */
 
 public class AndroidUtilities {
+
 
     /**
      * read a bitmap from a file and return a bitmap of a specific size

@@ -53,7 +53,7 @@ public class RegisteredPersonViewActivity extends Activity   {
          /* video data getting thread */
     private ImageView faceView;
 
-      private int screenWidth, screenHeight;
+    private int screenWidth, screenHeight;
     private TextView nameView;
     private ImageView exemplarView;
     private Spinner trainingView;
@@ -68,7 +68,8 @@ public class RegisteredPersonViewActivity extends Activity   {
         if(this.person == person)
             return;
         this.person = person;
-        nameView.setText(person.getId());
+        String id = Integer.toString(person.getId());
+        nameView.setText(person.getName() + " " + id);
         File exemplar = person.getExemplar();
         Bitmap bitmap = AndroidUtilities.fromFile(exemplar, imageWidth, imageHeight);
         exemplarView.setImageBitmap(bitmap);
@@ -83,8 +84,8 @@ public class RegisteredPersonViewActivity extends Activity   {
 
         setContentView(R.layout.activity_show_registered);
 
+         initLayout();
 
-        initLayout();
         RegisteredPersonSet registeredPeople = activityParent.getRegisteredPeople();
         RegisteredPerson p = registeredPeople.getPerson(0);
          setPerson(p);
