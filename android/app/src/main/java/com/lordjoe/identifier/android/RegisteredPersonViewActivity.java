@@ -57,6 +57,7 @@ public class RegisteredPersonViewActivity extends Activity   {
     private TextView nameView;
     private ImageView exemplarView;
     private Spinner trainingView;
+    private ImageSelectorAdapter adapter;
     private MainActivity activityParent;
     private RegisteredPerson person;
 
@@ -73,6 +74,7 @@ public class RegisteredPersonViewActivity extends Activity   {
         File exemplar = person.getExemplar();
         Bitmap bitmap = AndroidUtilities.fromFile(exemplar, imageWidth, imageHeight);
         exemplarView.setImageBitmap(bitmap);
+        adapter.setPerson(person);
 
 
     }
@@ -110,6 +112,13 @@ public class RegisteredPersonViewActivity extends Activity   {
         nameView =  (TextView)findViewById(R.id.personName);
         exemplarView =  (ImageView)findViewById(R.id.personExemplar);
         trainingView = (Spinner) findViewById(R.id.personImages);
+
+        String[] objects = { "fee","fie","foe","fum"};
+        adapter = new ImageSelectorAdapter(this, objects );
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        // see http://stackoverflow.com/questions/5999262/populate-spinner-dynamically-in-android-from-edit-text
+        trainingView.setAdapter(adapter);
+
         Log.e(LOG_TAG, "cameara preview start: OK");
     }
 
