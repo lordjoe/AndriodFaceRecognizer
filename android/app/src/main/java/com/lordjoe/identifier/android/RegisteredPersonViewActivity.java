@@ -104,7 +104,7 @@ public class RegisteredPersonViewActivity extends Activity   {
         myInflate = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         RelativeLayout topLayout = new RelativeLayout(this);
         setContentView(topLayout);
-        LinearLayout preViewLayout = (LinearLayout) myInflate.inflate(R.layout.activity_record, null);
+        LinearLayout preViewLayout = (LinearLayout) myInflate.inflate(R.layout.activity_show_registered, null);
         layoutParam = new RelativeLayout.LayoutParams(screenWidth, screenHeight);
         topLayout.addView(preViewLayout, layoutParam);
         nameView =  (TextView)findViewById(R.id.personName);
